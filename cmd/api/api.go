@@ -10,6 +10,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+const version = "0.0.1"
+
 type application struct {
 	config config
 	store  store.Storage
@@ -34,6 +36,10 @@ func (app *application) mount() http.Handler {
 
 	router.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
+
+		r.Route("/post", func(r chi.Router) {
+			r.Post("/", app.createPostHandler)
+		})
 	})
 
 	return router
