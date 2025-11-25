@@ -2,13 +2,19 @@ package store
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+var (
+	ErrorNotFound = errors.New("resource not found")
 )
 
 type Storage struct {
 	Posts interface {
 		Create(context.Context, *Post) error
+		GetPostById(context.Context, int) (*Post, error)
 	}
 
 	Users interface {

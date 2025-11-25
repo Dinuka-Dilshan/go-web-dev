@@ -1,16 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
+	"github.com/go-chi/chi/v5"
 )
 
 type CreatePostPayload struct {
 	Title   string   `json:"title"`
 	Content string   `json:"content"`
-	Tags    []string `json:tags`
+	Tags    []string `json:"tags"`
 }
 
 func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +20,7 @@ func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request
 	err := readJson(w, r, &payload)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		app.badRequestError(w, r, err)
 		return
 	}
 
@@ -29,14 +31,37 @@ func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request
 		UserId:  1,
 	}
 
-	if err = app.store.Posts.Create(r.Context(), post); err != nil {
-		writeJson(w, http.StatusInternalServerError, map[string]string{
-			"message": err.Error(),
-		})
-		fmt.Print(err)
+	err = app.store.Posts.Create(r.Context(), post)
+
+	if err != nil {
+		app.internalServerError(w, r, err)
 		return
 	}
 
-	writeJson(w, 200, post)
+	writeJson(w, http.StatusCreated, post)
 
+}
+
+func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
+	param := chi.URLParam(r, "postId")
+	postId, err := strconv.Atoi(param)
+
+	if err != nil{
+		app.badRequestError(w,r,err)
+		return
+	}
+
+	post, err := app.store.Posts.GetPostById(r.Context(), postId)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrorNotFound):
+			app.notFoundError(w, r, err)
+		default:
+			app.internalServerError(w, r, err)
+		}
+		return
+	}
+
+	writeJson(w, http.StatusOK, post)
 }
