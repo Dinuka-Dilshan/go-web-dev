@@ -14,11 +14,11 @@ type User struct {
 	CreatedAt string `json:"created_at`
 }
 
-type UsersStore struct {
+type UserStore struct {
 	db *pgxpool.Pool
 }
 
-func (userStore *UsersStore) Create(ctx context.Context, user *User) error {
+func (userStore *UserStore) Create(ctx context.Context, user *User) error {
 	query := `INSERT INTO users (username,password,email) VALUES ($1,$2,$3)`
 
 	_, err := userStore.db.Exec(

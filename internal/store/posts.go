@@ -17,6 +17,7 @@ type Post struct {
 	Tags      []string  `json:"tags"`
 	UpdatedAt time.Time `json:"updated_at"`
 	CreatedAt time.Time `json:"created_at"`
+	Comments  []Comment `json:"comments"`
 }
 
 type PostStore struct {
@@ -66,4 +67,44 @@ func (postStore *PostStore) GetPostById(ctx context.Context, id int) (*Post, err
 
 	return &post, nil
 
+}
+
+func (postStore *PostStore) Delete(ctx context.Context, postId int) error {
+	query := `DELETE FROM posts WHERE id = $1`
+
+	cmd, err := postStore.db.Exec(
+		ctx,
+		query,
+		postId,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return ErrorNotFound
+	}
+
+	return nil
+}
+
+func (postStore *PostStore) Update(ctx context.Context, post *Post) error {
+	query := `UPDATE posts 
+			  SET title = $1, content = $2
+			  WHERE id = $3`
+
+	_, err := postStore.db.Exec(
+		ctx,
+		query,
+		post.Title,
+		post.Content,
+		post.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

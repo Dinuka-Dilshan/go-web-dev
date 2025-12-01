@@ -25,6 +25,6 @@ func (app *application) badRequestError(w http.ResponseWriter, r *http.Request, 
 	log.Printf("bad request error %s path: %s error:%s", r.Method, r.URL.Path, err.Error())
 
 	writeJson(w, http.StatusBadRequest, map[string]string{
-		"error": "bad request",
+		"error": err.Error(),
 	})
 }
