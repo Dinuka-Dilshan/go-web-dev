@@ -5,16 +5,27 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+const version = "0.0.1"
+
 type application struct {
 	config config
+	store  store.Storage
 }
 
 type config struct {
-	address string
+	address  string
+	dbConfig dbConfig
+}
+
+type dbConfig struct {
+	address            string
+	maxOpenConnections int32
+	maxIdleTime        time.Duration
 }
 
 func (app *application) mount() http.Handler {
@@ -25,6 +36,17 @@ func (app *application) mount() http.Handler {
 
 	router.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
+
+		r.Route("/post", func(r chi.Router) {
+			r.Post("/", app.createPostHandler)
+			r.Route("/{postId}", func(r chi.Router) {
+				r.Use(app.postMiddleware)
+
+				r.Delete("/", app.deletePostHandler)
+				r.Get("/", app.getPostHandler)
+				r.Patch("/", app.updatePostHandler)
+			})
+		})
 	})
 
 	return router
