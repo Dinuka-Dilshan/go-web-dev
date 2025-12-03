@@ -38,3 +38,17 @@ func readJson(w http.ResponseWriter, r *http.Request, data any) error {
 	decoder.DisallowUnknownFields()
 	return decoder.Decode(data)
 }
+
+func (app *application) jsonResponse(w http.ResponseWriter, status int, data any) error {
+	type envelope struct {
+		Data any `json:"data"`
+	}
+
+	if data != nil {
+		return writeJson(w, status, &envelope{
+			Data: data,
+		})
+	}
+
+	return writeJson(w, status, data)
+}

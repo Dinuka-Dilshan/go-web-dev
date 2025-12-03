@@ -49,12 +49,12 @@ func (app *application) createPostHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJson(w, http.StatusCreated, post)
+	app.jsonResponse(w, http.StatusCreated, post)
 
 }
 
 func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
-	post := getPostFromCtx(r.Context())
+	post := getPostFromCtx(r)
 
 	comments, err := app.store.Comments.GetByPostId(r.Context(), post.ID)
 
@@ -64,7 +64,7 @@ func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
 		post.Comments = *comments
 	}
 
-	writeJson(w, http.StatusOK, post)
+	app.jsonResponse(w, http.StatusOK, post)
 }
 
 func (app *application) deletePostHandler(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +88,7 @@ func (app *application) deletePostHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJson(w, http.StatusOK, nil)
+	app.jsonResponse(w, http.StatusOK, nil)
 }
 
 func (app *application) updatePostHandler(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +108,7 @@ func (app *application) updatePostHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	post := getPostFromCtx(r.Context())
+	post := getPostFromCtx(r)
 
 	if payload.Content != nil {
 		post.Content = *payload.Content
@@ -124,7 +124,7 @@ func (app *application) updatePostHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeJson(w, http.StatusCreated, nil)
+	app.jsonResponse(w, http.StatusCreated, nil)
 
 }
 
@@ -159,7 +159,7 @@ func (app *application) postMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func getPostFromCtx(ctx context.Context) *store.Post {
-	post, _ := ctx.Value(postCtx).(*store.Post)
+func getPostFromCtx(r *http.Request) *store.Post {
+	post, _ := r.Context().Value(postCtx).(*store.Post)
 	return post
 }

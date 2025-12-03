@@ -18,6 +18,7 @@ type Post struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	CreatedAt time.Time `json:"created_at"`
 	Comments  []Comment `json:"comments"`
+	Version   int    `json:"version"`
 }
 
 type PostStore struct {
@@ -45,7 +46,7 @@ func (postStore *PostStore) Create(ctx context.Context, post *Post) error {
 }
 
 func (postStore *PostStore) GetPostById(ctx context.Context, id int) (*Post, error) {
-	query := `SELECT id, title, content, user_id, tags, created_at FROM posts WHERE id=$1`
+	query := `SELECT id, title, content, user_id, tags, created_at , version FROM posts WHERE id=$1`
 
 	var post Post
 	err := postStore.db.QueryRow(ctx, query, id).Scan(
@@ -54,7 +55,9 @@ func (postStore *PostStore) GetPostById(ctx context.Context, id int) (*Post, err
 		&post.Content,
 		&post.UserId,
 		&post.Tags,
-		&post.CreatedAt)
+		&post.CreatedAt,
+		&post.Version,
+	)
 
 	if err != nil {
 		switch {
@@ -91,19 +94,27 @@ func (postStore *PostStore) Delete(ctx context.Context, postId int) error {
 
 func (postStore *PostStore) Update(ctx context.Context, post *Post) error {
 	query := `UPDATE posts 
-			  SET title = $1, content = $2
-			  WHERE id = $3`
+			  SET title = $1, content = $2, version = version + 1
+			  WHERE id = $3 AND version = $4
+			  RETURNING version`
 
-	_, err := postStore.db.Exec(
+	err := postStore.db.QueryRow(
 		ctx,
 		query,
 		post.Title,
 		post.Content,
 		post.ID,
-	)
+		post.Version,
+	).Scan(&post.Version)
 
 	if err != nil {
-		return err
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return ErrorNotFound
+		default:
+			return err
+		}
+
 	}
 
 	return nil
