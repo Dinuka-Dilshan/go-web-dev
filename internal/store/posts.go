@@ -18,11 +18,71 @@ type Post struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	CreatedAt time.Time `json:"created_at"`
 	Comments  []Comment `json:"comments"`
-	Version   int    `json:"version"`
+	Version   int       `json:"version"`
+}
+
+type PostWithMetaData struct {
+	Post
+	CommentCount int `json:"comments_count,omitempty"`
+	User         struct {
+		ID       int    `json:"id"`
+		UserName string `json:"user_name"`
+	} `json:"user"`
 }
 
 type PostStore struct {
 	db *pgxpool.Pool
+}
+
+func (postStore *PostStore) GetUserFeed(ctx context.Context, userId int) ([]*PostWithMetaData, error) {
+	query := `
+ SELECT 
+    p.id, 
+    p.title, 
+    p.user_id,
+    p.content,
+    p.created_at, 
+    p.tags, 
+    COALESCE(comment_counts.total, 0) AS comments_count,
+    u.username
+FROM posts p
+LEFT JOIN (
+    SELECT post_id, COUNT(*) AS total
+    FROM comments
+    GROUP BY post_id
+) comment_counts ON comment_counts.post_id = p.id
+JOIN followers f ON f.follower_id = p.user_id AND f.user_id = $1
+LEFT JOIN users u ON u.id = p.user_id
+ORDER BY p.created_at DESC`
+
+	rows, err := postStore.db.Query(ctx, query, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	posts, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (*PostWithMetaData, error) {
+		var post PostWithMetaData
+		if err := row.Scan(
+			&post.ID,
+			&post.Title,
+			&post.UserId,
+			&post.Content,
+			&post.CreatedAt,
+			&post.Tags,
+			&post.CommentCount,
+			&post.User.UserName,
+		); err != nil {
+			return nil, err
+		}
+		post.User.ID = post.UserId
+		return &post, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+
 }
 
 func (postStore *PostStore) Create(ctx context.Context, post *Post) error {
