@@ -34,28 +34,50 @@ type PostStore struct {
 	db *pgxpool.Pool
 }
 
-func (postStore *PostStore) GetUserFeed(ctx context.Context, userId int) ([]*PostWithMetaData, error) {
-	query := `
- SELECT 
-    p.id, 
-    p.title, 
-    p.user_id,
-    p.content,
-    p.created_at, 
-    p.tags, 
-    COALESCE(comment_counts.total, 0) AS comments_count,
-    u.username
-FROM posts p
-LEFT JOIN (
-    SELECT post_id, COUNT(*) AS total
-    FROM comments
-    GROUP BY post_id
-) comment_counts ON comment_counts.post_id = p.id
-JOIN followers f ON f.follower_id = p.user_id AND f.user_id = $1
-LEFT JOIN users u ON u.id = p.user_id
-ORDER BY p.created_at DESC`
+func (postStore *PostStore) GetUserFeed(
+	ctx context.Context,
+	userId int,
+	pagination PaginatedQuery,
+) ([]*PostWithMetaData, error) {
 
-	rows, err := postStore.db.Query(ctx, query, userId)
+	query := `
+			SELECT 
+				p.id, 
+				p.title, 
+				p.user_id,
+				p.content,
+				p.created_at, 
+				p.tags, 
+				COALESCE(comment_counts.total, 0) AS comments_count,
+				u.username
+			FROM posts p
+			LEFT JOIN (
+				SELECT post_id, COUNT(*) AS total
+				FROM comments
+				GROUP BY post_id
+			) comment_counts ON comment_counts.post_id = p.id
+			JOIN followers f ON f.follower_id = p.user_id AND f.user_id = $1
+			LEFT JOIN users u ON u.id = p.user_id
+			WHERE 
+				(p.title ILIKE '%'|| $4 || '%' OR p.content ILIKE '%'|| $4 || '%') AND
+				(p.tags @> $5 OR p.tags @> '{}') AND
+				(p.created_at >= $6 OR $6 IS NULL) AND
+				(p.created_at < $7 OR $7 IS NULL)
+			ORDER BY p.created_at ` + pagination.Sort + `
+			LIMIT $2 OFFSET $3
+			`
+
+	rows, err := postStore.db.Query(
+		ctx,
+		query,
+		userId,
+		pagination.Limit,
+		pagination.Offset,
+		pagination.Search,
+		pagination.Tags,
+		pagination.Since,
+		pagination.Until,
+	)
 	if err != nil {
 		return nil, err
 	}
