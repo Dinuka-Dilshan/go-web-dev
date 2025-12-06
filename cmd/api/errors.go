@@ -13,6 +13,14 @@ func (app *application) internalServerError(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+func (app *application) conflictError(w http.ResponseWriter, r *http.Request, err error) {
+	log.Printf("conflict error %s path: %s error:%s", r.Method, r.URL.Path, err.Error())
+
+	writeJson(w, http.StatusConflict, map[string]string{
+		"error": "resource already exsists",
+	})
+}
+
 func (app *application) notFoundError(w http.ResponseWriter, r *http.Request, err error) {
 	log.Printf("not found error %s path: %s error:%s", r.Method, r.URL.Path, err.Error())
 

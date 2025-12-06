@@ -35,7 +35,14 @@ func (commentStore *CommentStore) GetByPostId(ctx context.Context, postId int) (
 
 	for rows.Next() {
 		var comment Comment
-		err := rows.Scan(&comment.ID, &comment.PostId, &comment.UserId, &comment.Content, &comment.CreatedAt, &comment.UserName)
+		err := rows.Scan(
+			&comment.ID,
+			&comment.PostId,
+			&comment.UserId,
+			&comment.Content,
+			&comment.CreatedAt,
+			&comment.UserName,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -43,4 +50,27 @@ func (commentStore *CommentStore) GetByPostId(ctx context.Context, postId int) (
 	}
 
 	return &comments, nil
+}
+
+func (commentStore *CommentStore) Create(ctx context.Context, comment *Comment) error {
+	query := `INSERT INTO comments (post_id, user_id, content)
+			  VALUES ($1,$2,$3)
+			  RETURNING id, created_at`
+
+	err := commentStore.db.QueryRow(
+		ctx,
+		query,
+		comment.PostId,
+		comment.UserId,
+		comment.Content,
+	).Scan(
+		&comment.ID,
+		&comment.CreatedAt,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
