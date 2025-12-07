@@ -21,3 +21,8 @@ migrate-down:
 .PHONY:seed
 seed:
 	@go run cmd/migrate/seed/main.go
+
+.PHONY:gen-docs
+gen-docs:
+	@`go env GOPATH`/bin/swag init -g main.go -d ./cmd/api && `go env GOPATH`/bin/swag fmt
+	@sed -i '' -e '/LeftDelim/d' -e '/RightDelim/d' docs/docs.go

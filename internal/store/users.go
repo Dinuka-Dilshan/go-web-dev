@@ -7,13 +7,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-
-
 type User struct {
 	ID        int       `json:"id"`
 	UserName  string    `json:"username"`
 	Email     string    `json:"email"`
-	Password  string  `json:"-"`
+	Password  string    `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -66,4 +64,3 @@ func (usersStore *UserStore) GetUserById(ctx context.Context, userId int) (*User
 
 	return user, nil
 }
-

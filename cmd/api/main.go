@@ -9,22 +9,40 @@ import (
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/db"
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
+//	@title			Gopher Social API
+//	@description	social api for ghophers.
+
+//	@contact.name	Gopher API Support
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host		localhost:3000
+// @BasePath	/v1/
 func main() {
-	err := godotenv.Load()
+	zap, err := zap.NewProduction()
+	logger := zap.Sugar()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer logger.Sync()
+
+	err = godotenv.Load()
+	if err != nil {
+		logger.Fatal("Error loading .env file")
 	}
 
 	port, ok := os.LookupEnv("PORT")
 	if !ok {
-		log.Fatal("cannot find port")
+		logger.Fatal("cannot find port")
 	}
 
 	databaseUrl, ok := os.LookupEnv("DATABASE_URL")
 	if !ok {
-		log.Fatal("cannot find database url")
+		logger.Fatal("cannot find database url")
 	}
 
 	config := &config{
@@ -34,6 +52,7 @@ func main() {
 			maxOpenConnections: 2,
 			maxIdleTime:        time.Second * 30,
 		},
+		apiUrl: "localhost:3000",
 	}
 
 	db, err := db.New(context.Background(), db.DBConfig{
@@ -52,9 +71,12 @@ func main() {
 	app := &application{
 		config: *config,
 		store:  *store,
+		logger: logger,
 	}
 
 	mux := app.mount()
 
-	log.Fatal(app.run(&mux))
+	if err := app.run(&mux); err != nil {
+		logger.Fatal("Start failed")
+	}
 }

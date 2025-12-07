@@ -6,6 +6,21 @@ import (
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
 )
 
+// GetUserFeedHandler godoc
+//
+//	@Summary		Get user feed
+//	@Description	Returns paginated feed of posts for a user
+//	@Tags			posts
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit	query		int		false	"Limit"						default(10)
+//	@Param			offset	query		int		false	"Offset"					default(0)
+//	@Param			sort	query		string	false	"Sort order (ASC or DESC)"	default(DESC)
+//	@Param			body	body		object	true	"User ID"
+//	@Success		200		{array}		map[string]interface{}
+//	@Failure		400		{string}	string	"Bad request"
+//	@Failure		500		{object}	map[string]string
+//	@Router			/post/feed [post]
 func (app *application) getUserFeedHandler(w http.ResponseWriter, r *http.Request) {
 
 	var paginatedQuery = store.PaginatedQuery{
