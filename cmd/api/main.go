@@ -53,6 +53,9 @@ func main() {
 			maxIdleTime:        time.Second * 30,
 		},
 		apiUrl: "localhost:3000",
+		mail: mailConfig{
+			exp: time.Hour * 24 * 3,
+		},
 	}
 
 	db, err := db.New(context.Background(), db.DBConfig{

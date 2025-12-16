@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -83,7 +82,7 @@ func (app *application) getPostHandler(w http.ResponseWriter, r *http.Request) {
 	comments, err := app.store.Comments.GetByPostId(r.Context(), post.ID)
 
 	if err != nil {
-		log.Printf("internal server error %s path: %s error:%s", r.Method, r.URL.Path, err.Error())
+		app.logger.Errorf("internal server error %s path: %s error:%s", r.Method, r.URL.Path, err.Error())
 	} else {
 		post.Comments = *comments
 	}

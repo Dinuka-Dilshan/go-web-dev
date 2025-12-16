@@ -25,6 +25,11 @@ type config struct {
 	address  string
 	dbConfig dbConfig
 	apiUrl   string
+	mail     mailConfig
+}
+
+type mailConfig struct {
+	exp time.Duration
 }
 
 type dbConfig struct {
@@ -67,6 +72,10 @@ func (app *application) mount() http.Handler {
 				r.Get("/feed", app.getUserFeedHandler)
 			})
 		})
+
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/user", app.registerUserHandler)
+		})
 	})
 
 	return router
@@ -86,7 +95,7 @@ func (app *application) run(mux *http.Handler) error {
 		IdleTimeout:  time.Minute,
 	}
 
-	app.logger.Infof("server is listning on port %v", app.config.address)
+	app.logger.Infow("server is listning on port", "addr", app.config.address)
 
 	return server.ListenAndServe()
 }
