@@ -6,6 +6,8 @@ import (
 	"math/rand"
 
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var userNames = []string{
@@ -112,13 +114,18 @@ var generatedComments = []string{
 	"Exactly what I was looking for.",
 }
 
-func Seed(store store.Storage) error {
+func Seed(store store.Storage, db *pgxpool.Pool) error {
 
 	ctx := context.Background()
 	users := generateUsers(100)
 
+	txn, err := db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
 	for _, user := range users {
-		if err := store.Users.Create(ctx, user); err != nil {
+		if err := store.Users.Create(ctx, txn, user); err != nil {
 			fmt.Println(err)
 		}
 	}
@@ -127,9 +134,11 @@ func Seed(store store.Storage) error {
 
 	for _, post := range posts {
 		if err := store.Posts.Create(ctx, post); err != nil {
+			txn.Rollback(ctx)
 			fmt.Println(err)
 		}
 	}
+	txn.Commit(ctx)
 
 	comments := generateComments(250, users, posts)
 
@@ -153,7 +162,6 @@ func generateUsers(num int) []*store.User {
 		users[i] = &store.User{
 			UserName: userName,
 			Email:    fmt.Sprintf("%v@example.com", userName),
-			Password: "123456",
 		}
 	}
 

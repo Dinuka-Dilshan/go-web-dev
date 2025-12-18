@@ -7,12 +7,10 @@
 *.dll
 *.so
 *.dylib
-bin/
 temp/*
 
 # Test binary, built with `go test -c`
 *.test
-*.main
 
 # Code coverage profiles and other test artifacts
 *.out

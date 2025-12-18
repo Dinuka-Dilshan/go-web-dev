@@ -9,8 +9,8 @@ import (
 )
 
 type DBConfig struct {
-	Address     string
-	MaxConns    int32
+	Address         string
+	MaxConns        int32
 	MaxConnIdleTime time.Duration
 }
 

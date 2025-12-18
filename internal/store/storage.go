@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"errors"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,8 +24,10 @@ type Storage struct {
 	}
 
 	Users interface {
-		Create(context.Context, *User) error
+		Create(ctx context.Context, txn pgx.Tx, user *User) error
 		GetUserById(context.Context, int) (*User, error)
+		CreateAndInvite(context.Context, *User, string, time.Duration) error
+		Activate(context.Context, string) error
 	}
 
 	Comments interface {
@@ -44,4 +48,18 @@ func NewStorage(db *pgxpool.Pool) *Storage {
 		Comments:  &CommentStore{db},
 		Followers: &FollowerStore{db},
 	}
+}
+
+func withTransaction(db *pgxpool.Pool, ctx context.Context, fn func(pgx.Tx) error) error {
+	tx, err := db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback(ctx)
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
