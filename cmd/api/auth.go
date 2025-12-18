@@ -15,6 +15,11 @@ type RegisterUserPayload struct {
 	Password string `json:"password" validate:"required,min=3,max=72"`
 }
 
+type UserWithToken struct {
+	store.User
+	Token string `json:"token"`
+}
+
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var payload RegisterUserPayload
 
@@ -23,7 +28,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := getValidator().Struct(payload); err != nil {
+	if err := getValidator().Struct(&payload); err != nil {
 		app.badRequestError(w, r, err)
 		return
 	}
@@ -57,4 +62,8 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	}
 
+	app.jsonResponse(w, http.StatusOK, UserWithToken{
+		User:  user,
+		Token: plainToken,
+	})
 }

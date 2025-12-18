@@ -27,6 +27,7 @@ type Storage struct {
 		Create(ctx context.Context, txn pgx.Tx, user *User) error
 		GetUserById(context.Context, int) (*User, error)
 		CreateAndInvite(context.Context, *User, string, time.Duration) error
+		Activate(context.Context, string) error
 	}
 
 	Comments interface {
@@ -52,11 +53,11 @@ func NewStorage(db *pgxpool.Pool) *Storage {
 func withTransaction(db *pgxpool.Pool, ctx context.Context, fn func(pgx.Tx) error) error {
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return nil
+		return err
 	}
 
-	if err = fn(tx); err != nil {
-		err = tx.Rollback(ctx)
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback(ctx)
 		return err
 	}
 
