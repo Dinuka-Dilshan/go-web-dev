@@ -49,6 +49,49 @@ type UserStore struct {
 	db *pgxpool.Pool
 }
 
+func (userStore *UserStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	query := `
+		SELECT id, email, username,  created_at
+		FROM users
+		WHERE email=$1 AND is_active = true
+	`
+
+	user := &User{}
+
+	err := userStore.db.QueryRow(
+		ctx,
+		query,
+		email,
+	).Scan(
+		&user.ID,
+		&user.Email,
+		&user.UserName,
+		&user.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (userStore *UserStore) Delete(context context.Context, userId int) error {
+
+	return withTransaction(userStore.db, context, func(tx pgx.Tx) error {
+		if err := userStore.delete(context, tx, userId); err != nil {
+			return err
+		}
+
+		if err := userStore.deleteUserInvitation(context, tx, userId); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+}
+
 func (userStore *UserStore) Activate(ctx context.Context, token string) error {
 
 	return withTransaction(userStore.db, ctx, func(tx pgx.Tx) error {
@@ -140,7 +183,7 @@ func (usersStore *UserStore) GetUserById(ctx context.Context, userId int) (*User
 
 	query := `SELECT id, email, username,  created_at
 			  FROM users
-			  WHERE id=$1
+			  WHERE id=$1 AND is_active = true
 			`
 	var user = &User{}
 
@@ -222,6 +265,20 @@ func (userStore *UserStore) deleteUserInvitation(
 	userId int,
 ) error {
 	query := `DELETE FROM user_invitations WHERE user_id =$1`
+
+	if _, err := transaction.Exec(context, query, userId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (userStore *UserStore) delete(
+	context context.Context,
+	transaction pgx.Tx,
+	userId int,
+) error {
+	query := `DELETE FROM users WHERE id =$1`
 
 	if _, err := transaction.Exec(context, query, userId); err != nil {
 		return err

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/Dinuka-Dilshan/go-web-dev/docs"
+	"github.com/Dinuka-Dilshan/go-web-dev/internal/auth"
+	"github.com/Dinuka-Dilshan/go-web-dev/internal/mailer"
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -16,9 +18,11 @@ import (
 const version = "0.0.2"
 
 type application struct {
-	config config
-	store  store.Storage
-	logger *zap.SugaredLogger
+	config        config
+	store         store.Storage
+	logger        *zap.SugaredLogger
+	mailer        mailer.Client
+	authenticator auth.Authenticator
 }
 
 type config struct {
@@ -26,10 +30,24 @@ type config struct {
 	dbConfig dbConfig
 	apiUrl   string
 	mail     mailConfig
+	auth     authConfig
+}
+
+type authConfig struct {
+	aud    string
+	iss    string
+	secret string
+	exp    time.Duration
 }
 
 type mailConfig struct {
-	exp time.Duration
+	sendGrid sendGridConfig
+	exp      time.Duration
+}
+
+type sendGridConfig struct {
+	apiKey    string
+	fromEmail string
 }
 
 type dbConfig struct {
@@ -43,6 +61,7 @@ func (app *application) mount() http.Handler {
 
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Logger)
+	router.Use(app.BasicAuthMiddleware())
 
 	router.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
@@ -78,6 +97,7 @@ func (app *application) mount() http.Handler {
 
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/user", app.registerUserHandler)
+			r.Post("/token", app.createTokenHandler)
 		})
 	})
 

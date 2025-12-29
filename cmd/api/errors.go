@@ -35,3 +35,11 @@ func (app *application) badRequestError(w http.ResponseWriter, r *http.Request, 
 		"error": err.Error(),
 	})
 }
+
+func (app *application) unauthorizedError(w http.ResponseWriter, r *http.Request, err error) {
+	app.logger.Errorw("unauthorized error", "method", r.Method, "path", r.URL.Path, "error", err.Error())
+
+	writeJson(w, http.StatusUnauthorized, map[string]string{
+		"error": err.Error(),
+	})
+}

@@ -6,7 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/Dinuka-Dilshan/go-web-dev/internal/auth"
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/db"
+	"github.com/Dinuka-Dilshan/go-web-dev/internal/mailer"
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
@@ -45,6 +47,21 @@ func main() {
 		logger.Fatal("cannot find database url")
 	}
 
+	emailApiKey, ok := os.LookupEnv("EMAIL_API_KEY")
+	if !ok {
+		logger.Fatal("cannot find sendgrid api key")
+	}
+
+	fromEmail, ok := os.LookupEnv("FROM_EMAIL")
+	if !ok {
+		logger.Fatal("cannot find from email")
+	}
+
+	jwtSecret, ok := os.LookupEnv("JWT_SECRET")
+	if !ok {
+		logger.Fatal("cannot find jwt secret")
+	}
+
 	config := &config{
 		address: port,
 		dbConfig: dbConfig{
@@ -55,6 +72,16 @@ func main() {
 		apiUrl: "localhost:3000",
 		mail: mailConfig{
 			exp: time.Hour * 24 * 3,
+			sendGrid: sendGridConfig{
+				apiKey:    emailApiKey,
+				fromEmail: fromEmail,
+			},
+		},
+		auth: authConfig{
+			aud:    "GopherSocial",
+			iss:    "GopherSocial",
+			secret: jwtSecret,
+			exp:    time.Hour * 24 * 3, //3days
 		},
 	}
 
@@ -71,10 +98,22 @@ func main() {
 
 	store := store.NewStorage(db)
 
+	mailtrapMailer, err := mailer.NewMailtrapClient(
+		config.mail.sendGrid.fromEmail,
+		config.mail.sendGrid.apiKey,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	jwtAuthenticator := auth.NewJwtAuthenticator(config.auth.secret, config.auth.aud, config.auth.iss)
+
 	app := &application{
-		config: *config,
-		store:  *store,
-		logger: logger,
+		config:        *config,
+		store:         *store,
+		logger:        logger,
+		mailer:        mailtrapMailer,
+		authenticator: &jwtAuthenticator,
 	}
 
 	mux := app.mount()
