@@ -19,7 +19,7 @@ const version = "0.0.2"
 
 type application struct {
 	config        config
-	store         store.Storage
+	store         *store.Storage
 	logger        *zap.SugaredLogger
 	mailer        mailer.Client
 	authenticator auth.Authenticator
@@ -61,7 +61,6 @@ func (app *application) mount() http.Handler {
 
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Logger)
-	router.Use(app.BasicAuthMiddleware())
 
 	router.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
@@ -70,13 +69,14 @@ func (app *application) mount() http.Handler {
 		))
 
 		r.Route("/post", func(r chi.Router) {
+			r.Use(app.AuthMiddleware)
 			r.Post("/", app.createPostHandler)
 			r.Route("/{postId}", func(r chi.Router) {
 				r.Use(app.postMiddleware)
 
-				r.Delete("/", app.deletePostHandler)
 				r.Get("/", app.getPostHandler)
-				r.Patch("/", app.updatePostHandler)
+				r.Patch("/", app.checkPostOwnership("moderator", app.updatePostHandler))
+				r.Delete("/", app.checkPostOwnership("admin", app.deletePostHandler))
 			})
 
 		})
@@ -84,13 +84,14 @@ func (app *application) mount() http.Handler {
 			r.Put("/activate/{token}", app.activateUserHandler)
 
 			r.Route("/{userId}", func(r chi.Router) {
-				r.Use(app.userContextMiddleWare)
+				r.Use(app.AuthMiddleware)
 				r.Get("/", app.getUserHandler)
 				r.Put("/follow", app.followUserHandler)
 				r.Put("/unfollow", app.unfollowUserHandler)
 			})
 
 			r.Group(func(r chi.Router) {
+				r.Use(app.AuthMiddleware)
 				r.Get("/feed", app.getUserFeedHandler)
 			})
 		})

@@ -39,6 +39,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	user := store.User{
 		UserName: payload.Username,
 		Email:    payload.Email,
+		RoleId:   1,
 	}
 
 	if err := user.Password.Set(payload.Password); err != nil {
@@ -117,6 +118,11 @@ func (app *application) createTokenHandler(w http.ResponseWriter, r *http.Reques
 		default:
 			app.internalServerError(w, r, err)
 		}
+		return
+	}
+
+	if err := user.Password.Compare(payload.Password); err != nil {
+		app.unauthorizedError(w, r, err)
 		return
 	}
 

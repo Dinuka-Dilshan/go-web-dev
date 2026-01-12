@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/Dinuka-Dilshan/go-web-dev/internal/store"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
 )
 
 type UserKey string
@@ -34,37 +32,6 @@ func (app *application) getUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) userContextMiddleWare(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		param := chi.URLParam(r, "userId")
-		userId, err := strconv.Atoi(param)
-
-		if err != nil {
-			app.badRequestError(w, r, err)
-			return
-		}
-
-		user, err := app.store.Users.GetUserById(r.Context(), userId)
-		if err != nil {
-			switch err {
-			case pgx.ErrNoRows:
-				app.notFoundError(w, r, err)
-			default:
-				app.internalServerError(w, r, err)
-			}
-			return
-		}
-		ctx := r.Context()
-		ctx = context.WithValue(ctx, userCtx, user)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-type FollowUser struct {
-	UserID int `json:"user_id"`
-}
-
 // FollowUserHandler godoc
 //
 //	@Summary		Follow a user
@@ -80,15 +47,14 @@ type FollowUser struct {
 //	@Failure		500		{object}	map[string]string
 //	@Router			/users/{userId}/follow [post]
 func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request) {
-	var payload FollowUser
-	if err := readJson(w, r, &payload); err != nil {
-		app.badRequestError(w, r, err)
-		return
-	}
 
 	followUser := getUserFromCtx(r)
+	followId, err := strconv.Atoi(chi.URLParam(r, "userId"))
+	if err != nil {
+		app.badRequestError(w, r, err)
+	}
 
-	if err := app.store.Followers.Follow(r.Context(), followUser.ID, payload.UserID); err != nil {
+	if err := app.store.Followers.Follow(r.Context(), followUser.ID, followId); err != nil {
 		switch err {
 		case store.ErrorConflict:
 			app.conflictError(w, r, err)
@@ -118,15 +84,13 @@ func (app *application) followUserHandler(w http.ResponseWriter, r *http.Request
 //	@Failure		500		{object}	map[string]string
 //	@Router			/users/{userId}/unfollow [post]
 func (app *application) unfollowUserHandler(w http.ResponseWriter, r *http.Request) {
-	var payload FollowUser
-	if err := readJson(w, r, &payload); err != nil {
+	followUser := getUserFromCtx(r)
+	followedId, err := strconv.Atoi(chi.URLParam(r, "userId"))
+	if err != nil {
 		app.badRequestError(w, r, err)
-		return
 	}
 
-	unfollowUser := getUserFromCtx(r)
-
-	if err := app.store.Followers.Unfollow(r.Context(), unfollowUser.ID, payload.UserID); err != nil {
+	if err := app.store.Followers.Unfollow(r.Context(), followUser.ID, followedId); err != nil {
 		app.internalServerError(w, r, err)
 		return
 	}

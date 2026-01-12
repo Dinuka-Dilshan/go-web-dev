@@ -85,7 +85,7 @@ func main() {
 		},
 	}
 
-	db, err := db.New(context.Background(), db.DBConfig{
+	dbPool, err := db.New(context.Background(), db.DBConfig{
 		Address:         config.dbConfig.address,
 		MaxConns:        config.dbConfig.maxOpenConnections,
 		MaxConnIdleTime: config.dbConfig.maxIdleTime,
@@ -94,9 +94,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer dbPool.Close()
 
-	store := store.NewStorage(db)
+	store := store.NewStorage(dbPool)
 
 	mailtrapMailer, err := mailer.NewMailtrapClient(
 		config.mail.sendGrid.fromEmail,
@@ -110,10 +110,10 @@ func main() {
 
 	app := &application{
 		config:        *config,
-		store:         *store,
+		store:         store,
 		logger:        logger,
 		mailer:        mailtrapMailer,
-		authenticator: &jwtAuthenticator,
+		authenticator: jwtAuthenticator,
 	}
 
 	mux := app.mount()
