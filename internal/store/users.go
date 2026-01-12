@@ -26,6 +26,8 @@ type User struct {
 	Password  password  `json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 	IsActive  bool      `json:"is_active"`
+	RoleId    int       `json:"role_id"`
+	Role      Role      `json:"role"`
 }
 
 type password struct {
@@ -45,13 +47,17 @@ func (password *password) Set(text string) error {
 	return nil
 }
 
+func (password *password) Compare(text string) error {
+	return bcrypt.CompareHashAndPassword(password.hash, []byte(text))
+}
+
 type UserStore struct {
 	db *pgxpool.Pool
 }
 
 func (userStore *UserStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT id, email, username,  created_at
+		SELECT id, email, username,  created_at, password
 		FROM users
 		WHERE email=$1 AND is_active = true
 	`
@@ -67,6 +73,7 @@ func (userStore *UserStore) GetUserByEmail(ctx context.Context, email string) (*
 		&user.Email,
 		&user.UserName,
 		&user.CreatedAt,
+		&user.Password.hash,
 	)
 
 	if err != nil {
@@ -153,8 +160,8 @@ func (useStore *UserStore) getUserFromInvitation(
 }
 
 func (userStore *UserStore) Create(ctx context.Context, txn pgx.Tx, user *User) error {
-	query := `INSERT INTO users (username,password,email) 
-			  VALUES ($1,$2,$3)
+	query := `INSERT INTO users (username,password,email, role_id) 
+			  VALUES ($1,$2,$3,$4)
 			  RETURNING id, created_at`
 
 	err := txn.QueryRow(
@@ -163,6 +170,7 @@ func (userStore *UserStore) Create(ctx context.Context, txn pgx.Tx, user *User) 
 		user.UserName,
 		user.Password.hash,
 		user.Email,
+		user.RoleId,
 	).Scan(&user.ID, &user.CreatedAt)
 
 	if err != nil {
@@ -181,9 +189,10 @@ func (userStore *UserStore) Create(ctx context.Context, txn pgx.Tx, user *User) 
 
 func (usersStore *UserStore) GetUserById(ctx context.Context, userId int) (*User, error) {
 
-	query := `SELECT id, email, username,  created_at
-			  FROM users
-			  WHERE id=$1 AND is_active = true
+	query := `SELECT users.id, email, username, created_at, password, roles.id, roles.name, roles.level, roles.description
+			FROM users
+			JOIN roles ON (users.role_id = roles.id)
+			WHERE users.id = $1 AND is_active = true
 			`
 	var user = &User{}
 
@@ -196,6 +205,11 @@ func (usersStore *UserStore) GetUserById(ctx context.Context, userId int) (*User
 		&user.Email,
 		&user.UserName,
 		&user.CreatedAt,
+		&user.Password.hash,
+		&user.Role.ID,
+		&user.Role.Name,
+		&user.Role.Level,
+		&user.Role.Description,
 	)
 
 	if err != nil {

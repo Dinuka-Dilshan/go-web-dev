@@ -162,6 +162,7 @@ func generateUsers(num int) []*store.User {
 		users[i] = &store.User{
 			UserName: userName,
 			Email:    fmt.Sprintf("%v@example.com", userName),
+			RoleId:   1,
 		}
 	}
 
